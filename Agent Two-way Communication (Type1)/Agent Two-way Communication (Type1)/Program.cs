@@ -27,18 +27,6 @@ namespace Server
                 Console.WriteLine($"Client {clientIdCounter} connected");
                 // 클라이언트 핸들러 생성 및 시작
                 _ = Task.Run(() => ClientHandler(clientIdCounter, client));
-                using (var httpClient = new HttpClient())
-                {
-                    var response = await httpClient.GetAsync("http://r741.realserver2.com/api/post.php");
-                    response.EnsureSuccessStatusCode();
-                    string currentValue = await response.Content.ReadAsStringAsync();
-                    if (previousFilePath != currentValue && currentValue != null)
-                    {
-                        SendMessageToAllClients(currentValue);
-                        previousFilePath = currentValue;
-                    }
-                    await Task.Delay(TimeSpan.FromSeconds(1));
-                }
             }
         }
 
