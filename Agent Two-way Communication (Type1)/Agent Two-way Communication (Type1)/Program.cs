@@ -10,14 +10,21 @@ namespace Server
         private const int PORT = 7777;
         private static ConcurrentDictionary<int, TcpClient> clients = new ConcurrentDictionary<int, TcpClient>();
         private static int clientIdCounter = 0;
+        static string logFile;
 
         static async Task Main(string[] args)
         {
+
+            string log = Path.Combine(Directory.GetCurrentDirectory(), "Log");
+            NewFolder(log, "LogFolder");
+            logFile = Path.Combine(log, "Log");
+            NewFile(logFile, "Log");
+
             TcpListener listener = new TcpListener(IPAddress.Any, PORT);
             listener.Start();
             Console.WriteLine($"Waiting for clients on port {PORT}...");
 
-            string previousFilePath = null;
+            string previousValue = null;
 
             while (true)
             {
@@ -32,10 +39,12 @@ namespace Server
                     var response = await httpClient.GetAsync("http://r741.realserver2.com/api/post.php");
                     response.EnsureSuccessStatusCode();
                     string currentValue = await response.Content.ReadAsStringAsync();
-                    if (previousFilePath != currentValue && currentValue != null)
+                    if (previousValue != currentValue && currentValue != null)
                     {
                         SendMessageToAllClients(currentValue);
-                        previousFilePath = currentValue;
+                        previousValue = currentValue;
+
+                        File.AppendAllText(logFile, $"{currentValue}\n");
                     }
                     await Task.Delay(TimeSpan.FromSeconds(1));
                 }
@@ -72,10 +81,18 @@ namespace Server
                         {
                             var responseBody = await response.Content.ReadAsStringAsync();
                             Console.WriteLine(responseBody);
+
+                            string logMessage = $"[{DateTime.Now}] Received message from client {clientId}: {message}\n";
+                            logMessage += $"[{DateTime.Now}] Response from web API: {responseBody}\n";
+                            File.AppendAllText(logFile, logMessage);
                         }
                         else
                         {
                             Console.WriteLine($"Error: {response.StatusCode}");
+
+                            string logMessage = $"[{DateTime.Now}] Received message from client {clientId}: {message}\n";
+                            logMessage += $"[{DateTime.Now}] Error: {response.StatusCode}\n";
+                            File.AppendAllText(logFile, logMessage);
                         }
                     }
                 }
@@ -86,6 +103,33 @@ namespace Server
                 clients.TryRemove(clientId, out _);
                 Console.WriteLine($"Client {clientId} disconnected");
             }
+        }
+        static void NewFile(string path, string name)
+        {
+            if (File.Exists(path))
+            {
+                Console.WriteLine("중복된 파일 이름이 존재합니다.");
+            }
+            else
+            {
+                // 파일 생성
+                File.WriteAllText(path, "");
+                Console.WriteLine($"{name} 파일이 생성되었습니다.");
+            }
+        }
+        static void NewFolder(string path, string name)
+        {
+            if (!Directory.Exists(path))
+            {
+                // 폴더가 없는 경우 폴더 만들기
+                Directory.CreateDirectory(path);
+                Console.WriteLine($"New {name} folder created.");
+            }
+            else
+            {
+                Console.WriteLine($"{name} Folder already exists.");
+            }
+            Console.WriteLine($"{name} Folder path: " + path);
         }
     }
 }
